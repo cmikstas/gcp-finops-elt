@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: finops_lab
+    database: cur-sql-practice
+    schema: finops_lab
+    tables:
+      - name: server_metrics
+        description: "Raw server metrics ingested by Beam pipeline, all STRING columns"
