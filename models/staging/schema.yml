@@ -28,19 +28,3 @@ models:
         description: "Network ingress in mbps as a float"
         tests:
           - not_null
-
-  - name: fct_server_metrics
-    description: "Final server metrics model ready for Grafana and Looker"
-    columns:
-      - name: timestamp
-        description: "Parsed timestamp of the metric"
-        tests:
-          - not_null
-      - name: server_id
-        description: "Unique identifier for the server"
-        tests:
-          - not_null
-      - name: metric_date
-        description: "Date extracted from timestamp for partitioning"
-        tests:
-          - not_null
