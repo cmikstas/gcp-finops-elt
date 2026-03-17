@@ -32,3 +32,23 @@ sources:
             description: "Network ingress in mbps as a string"
             tests:
               - not_null
+
+      - name: cur_billing_data
+        description: "Raw AWS Cost and Usage Report data, all STRING columns"
+        columns:
+          - name: usagestartdate
+            description: "Start date of the usage period"
+            tests:
+              - not_null
+          - name: usageaccountid
+            description: "AWS account ID for the usage"
+            tests:
+              - not_null
+          - name: productcode
+            description: "AWS product/service code"
+            tests:
+              - not_null
+          - name: cost
+            description: "Cost as a string"
+            tests:
+              - not_null

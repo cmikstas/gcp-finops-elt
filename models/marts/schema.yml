@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: fct_server_metrics
+    description: "Final server metrics model ready for Grafana and Looker"
+    columns:
+      - name: timestamp
+        description: "Parsed timestamp of the metric"
+        tests:
+          - not_null
+      - name: server_id
+        description: "Unique identifier for the server"
+        tests:
+          - not_null
+      - name: metric_date
+        description: "Date extracted from timestamp for partitioning"
+        tests:
+          - not_null
+
+  - name: fct_cur
+    description: "Final CUR billing model with service categorization"
+    columns:
+      - name: usage_start_date
+        tests:
+          - not_null
+      - name: usage_account_id
+        tests:
+          - not_null
+      - name: cost
+        tests:
+          - not_null
+      - name: service_category
+        tests:
+          - not_null
