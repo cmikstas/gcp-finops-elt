@@ -32,3 +32,28 @@ models:
       - name: service_category
         tests:
           - not_null
+
+  - name: dim_account_map
+    description: "Account dimension table with ownership and environment metadata"
+    columns:
+      - name: account_id
+        description: "Unique AWS account identifier"
+        tests:
+          - not_null
+          - unique
+      - name: account_name
+        description: "Human readable account name"
+        tests:
+          - not_null
+      - name: business_unit
+        description: "Business unit that owns the account"
+        tests:
+          - not_null
+      - name: environment
+        description: "Account environment type"
+        tests:
+          - not_null
+      - name: is_production
+        description: "Boolean flag indicating if this is a production account"
+        tests:
+          - not_null
