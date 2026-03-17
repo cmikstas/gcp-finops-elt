@@ -52,3 +52,24 @@ sources:
             description: "Cost as a string"
             tests:
               - not_null
+      
+      - name: account_map
+        description: "Account metadata and ownership mapping"
+        columns:
+          - name: account_id
+            description: "Unique AWS account identifier"
+            tests:
+              - not_null
+              - unique
+          - name: account_name
+            description: "Human readable account name"
+            tests:
+              - not_null
+          - name: business_unit
+            description: "Business unit that owns the account"
+            tests:
+              - not_null
+          - name: environment
+            description: "Account environment type"
+            tests:
+              - not_null
