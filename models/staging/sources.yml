@@ -7,3 +7,28 @@ sources:
     tables:
       - name: server_metrics
         description: "Raw server metrics ingested by Beam pipeline, all STRING columns"
+        columns:
+          - name: timestamp
+            description: "ISO 8601 timestamp of the metric"
+            tests:
+              - not_null
+          - name: server_id
+            description: "Unique identifier for the server"
+            tests:
+              - not_null
+          - name: cpu_usage
+            description: "CPU usage as a string percentage"
+            tests:
+              - not_null
+          - name: memory_usage
+            description: "Memory usage as a string percentage"
+            tests:
+              - not_null
+          - name: disk_io_mbps
+            description: "Disk I/O in mbps as a string"
+            tests:
+              - not_null
+          - name: network_in_mbps
+            description: "Network ingress in mbps as a string"
+            tests:
+              - not_null

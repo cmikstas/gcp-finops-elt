@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: stg_server_metrics
+    description: "Staged server metrics with proper types cast from raw strings"
+    columns:
+      - name: timestamp
+        description: "Parsed timestamp of the metric"
+        tests:
+          - not_null
+      - name: server_id
+        description: "Unique identifier for the server"
+        tests:
+          - not_null
+      - name: cpu_usage
+        description: "CPU usage as a float"
+        tests:
+          - not_null
+      - name: memory_usage
+        description: "Memory usage as a float"
+        tests:
+          - not_null
+      - name: disk_io_mbps
+        description: "Disk I/O in mbps as a float"
+        tests:
+          - not_null
+      - name: network_in_mbps
+        description: "Network ingress in mbps as a float"
+        tests:
+          - not_null
+
+  - name: fct_server_metrics
+    description: "Final server metrics model ready for Grafana and Looker"
+    columns:
+      - name: timestamp
+        description: "Parsed timestamp of the metric"
+        tests:
+          - not_null
+      - name: server_id
+        description: "Unique identifier for the server"
+        tests:
+          - not_null
+      - name: metric_date
+        description: "Date extracted from timestamp for partitioning"
+        tests:
+          - not_null
