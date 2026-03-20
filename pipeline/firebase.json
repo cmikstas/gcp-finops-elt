@@ -1,0 +1,30 @@
+{
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/upload",
+        "run": {
+          "serviceId": "finops-beam-pipeline",
+          "region": "us-west3"
+        }
+      },
+      {
+        "source": "/stream",
+        "run": {
+          "serviceId": "finops-beam-pipeline",
+          "region": "us-west3"
+        }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

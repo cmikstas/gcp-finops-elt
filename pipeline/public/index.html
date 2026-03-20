@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinOps Pipeline Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #0B0E14;
+      color: #C9D1D9;
+      font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    #root {
+      padding: 40px 20px;
+    }
+
+    ::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #111620;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #1E2636;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3B82F6;
+    }
+
+    select option {
+      background: #111620;
+      color: #C9D1D9;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useCallback, useRef, useEffect } = React;
+
+    // =====================================================================
+    // SHARED DATA MODEL — 10 Accounts
+    // =====================================================================
+
+    const ACCOUNTS = [
+      { id: "111111111111", name: "Prod Web App", owner_email: "sarah@company.com", business_unit: "Engineering", primary_region: "us-east-1", environment: "Production" },
+      { id: "222222222222", name: "Prod API", owner_email: "api-team@company.com", business_unit: "Engineering", primary_region: "us-east-1", environment: "Production" },
+      { id: "333333333333", name: "Staging", owner_email: "devops@company.com", business_unit: "Engineering", primary_region: "us-east-1", environment: "Staging" },
+      { id: "444444444444", name: "Dev/Test", owner_email: "devops@company.com", business_unit: "Engineering", primary_region: "us-east-2", environment: "Development" },
+      { id: "555555555555", name: "Analytics", owner_email: "data@company.com", business_unit: "Data Science", primary_region: "us-west-2", environment: "Production" },
+      { id: "666666666666", name: "ML Platform", owner_email: "mlops@company.com", business_unit: "Data Science", primary_region: "us-west-2", environment: "Production" },
+      { id: "777777777777", name: "Shared Services", owner_email: "it@company.com", business_unit: "IT", primary_region: "us-east-1", environment: "Production" },
+      { id: "888888888888", name: "Security", owner_email: "security@company.com", business_unit: "IT", primary_region: "us-east-1", environment: "Production" },
+      { id: "999999999999", name: "Sandbox", owner_email: "intern@company.com", business_unit: "R&D", primary_region: "us-east-2", environment: "Development" },
+      { id: "101010101010", name: "Acquired Co Legacy", owner_email: "legacy@acquired.com", business_unit: "Acquired", primary_region: "us-east-1", environment: "Production" },
+    ];
+
+    // =====================================================================
+    // AWS Services with ProductFamily mappings
+    // =====================================================================
+
+    const SERVICES = [
+      { ProductCode: "AmazonEC2", ProductFamily: "Compute Instance", baseRange: [2, 120] },
+      { ProductCode: "AmazonS3", ProductFamily: "Storage", baseRange: [0.02, 15] },
+      { ProductCode: "AmazonRDS", ProductFamily: "Database Instance", baseRange: [1.5, 80] },
+      { ProductCode: "AWSLambda", ProductFamily: "Serverless Compute", baseRange: [0.001, 5] },
+      { ProductCode: "AmazonCloudFront", ProductFamily: "Content Delivery", baseRange: [0.08, 20] },
+      { ProductCode: "AmazonDynamoDB", ProductFamily: "NoSQL Database", baseRange: [0.25, 35] },
+      { ProductCode: "AmazonEKS", ProductFamily: "Container Service", baseRange: [3, 150] },
+      { ProductCode: "AmazonRedshift", ProductFamily: "Data Warehouse", baseRange: [0.25, 50] },
+      { ProductCode: "AmazonCloudWatch", ProductFamily: "Monitoring", baseRange: [0.3, 8] },
+      { ProductCode: "AWSDataTransfer", ProductFamily: "Data Transfer", baseRange: [0.05, 25] },
+      { ProductCode: "AWSGlue", ProductFamily: "ETL", baseRange: [0.44, 20] },
+      { ProductCode: "AmazonSQS", ProductFamily: "Message Queue", baseRange: [0.001, 3] },
+    ];
+
+    // Spending personalities per account
+    const SPENDING_PROFILES = {
+      "111111111111": { AmazonEC2: 30, AmazonRDS: 20, AmazonCloudFront: 15, AmazonEKS: 10, AWSDataTransfer: 8, AmazonCloudWatch: 5, AWSLambda: 5, AmazonS3: 4, AmazonSQS: 3 },
+      "222222222222": { AmazonEC2: 25, AmazonEKS: 20, AWSLambda: 15, AmazonDynamoDB: 12, AWSDataTransfer: 10, AmazonCloudWatch: 6, AmazonS3: 6, AmazonSQS: 6 },
+      "333333333333": { AmazonEC2: 25, AmazonRDS: 15, AmazonS3: 10, AmazonEKS: 10, AWSLambda: 10, AmazonCloudWatch: 10, AWSDataTransfer: 10, AmazonSQS: 5, AmazonCloudFront: 5 },
+      "444444444444": { AmazonEC2: 20, AmazonS3: 15, AmazonRDS: 10, AWSLambda: 15, AmazonCloudWatch: 10, AWSDataTransfer: 5, AmazonDynamoDB: 10, AmazonSQS: 10, AWSGlue: 5 },
+      "555555555555": { AmazonRedshift: 30, AmazonS3: 25, AWSGlue: 20, AWSDataTransfer: 10, AmazonCloudWatch: 5, AmazonEC2: 5, AWSLambda: 5 },
+      "666666666666": { AmazonEC2: 35, AmazonS3: 25, AWSGlue: 10, AWSDataTransfer: 10, AmazonCloudWatch: 5, AWSLambda: 5, AmazonEKS: 10 },
+      "777777777777": { AmazonCloudWatch: 25, AmazonS3: 15, AWSLambda: 15, AmazonEC2: 10, AWSDataTransfer: 10, AmazonSQS: 10, AmazonDynamoDB: 10, AmazonCloudFront: 5 },
+      "888888888888": { AmazonCloudWatch: 30, AmazonS3: 20, AWSLambda: 15, AmazonEC2: 10, AmazonDynamoDB: 10, AWSDataTransfer: 5, AmazonSQS: 5, AWSGlue: 5 },
+      "999999999999": { AmazonEC2: 20, AmazonS3: 20, AmazonRDS: 10, AWSLambda: 15, AmazonDynamoDB: 10, AmazonCloudWatch: 5, AWSDataTransfer: 5, AWSGlue: 5, AmazonSQS: 5, AmazonEKS: 5 },
+      "101010101010": { AmazonEC2: 30, AmazonRDS: 25, AmazonS3: 15, AWSDataTransfer: 10, AmazonCloudWatch: 5, AmazonCloudFront: 5, AWSLambda: 5, AmazonSQS: 5 },
+    };
+
+    // Cost multipliers per account
+    const COST_MULTIPLIERS = {
+      "111111111111": 1.8, "222222222222": 1.5, "333333333333": 0.4, "444444444444": 0.2,
+      "555555555555": 1.2, "666666666666": 1.6, "777777777777": 0.5, "888888888888": 0.3,
+      "999999999999": 0.1, "101010101010": 0.9,
+    };
+
+    const REGIONS = ["us-east-1", "us-west-2", "us-east-2", "eu-west-1", "ap-southeast-1"];
+
+    const LINE_ITEM_TYPES = [
+      { type: "Usage", weight: 65 }, { type: "DiscountedUsage", weight: 18 },
+      { type: "Tax", weight: 4 }, { type: "SavingsPlanCoveredUsage", weight: 6 },
+      { type: "Credit", weight: 2 }, { type: "RIFee", weight: 3 },
+      { type: "SavingsPlanRecurringFee", weight: 2 },
+    ];
+
+    const DENSITY = { light: 800, standard: 1500, heavy: 2500 };
+
+    // =====================================================================
+    // CUR Generator
+    // =====================================================================
+
+    function weightedPick(weightMap) {
+      const entries = Object.entries(weightMap);
+      const total = entries.reduce((s, [, w]) => s + w, 0);
+      let r = Math.random() * total;
+      for (const [key, w] of entries) { r -= w; if (r <= 0) return key; }
+      return entries[0][0];
+    }
+
+    function weightedRandom(items) {
+      const total = items.reduce((sum, i) => sum + i.weight, 0);
+      let r = Math.random() * total;
+      for (const item of items) { r -= item.weight; if (r <= 0) return item.type; }
+      return items[0].type;
+    }
+
+    function randomBetween(min, max) { return +(min + Math.random() * (max - min)).toFixed(4); }
+
+    function getDaysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
+
+    function generateCurRows(year, month, density) {
+      const count = DENSITY[density] || DENSITY.standard;
+      const daysInMonth = getDaysInMonth(year, month);
+      const billPayer = "111111111111";
+      const rows = [];
+
+      for (let i = 0; i < count; i++) {
+        const acct = ACCOUNTS[Math.floor(Math.random() * ACCOUNTS.length)];
+        const profile = SPENDING_PROFILES[acct.id];
+        const productCode = weightedPick(profile);
+        const svcDef = SERVICES.find(s => s.ProductCode === productCode) || SERVICES[0];
+        const lineItemType = weightedRandom(LINE_ITEM_TYPES);
+        const isDiscount = lineItemType === "DiscountedUsage" || lineItemType === "Credit";
+
+        const day = 1 + Math.floor(Math.random() * daysInMonth);
+        const date = new Date(year, month - 1, day);
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        const dayMultiplier = isWeekend ? 0.6 : 1.0;
+
+        const baseCost = randomBetween(svcDef.baseRange[0], svcDef.baseRange[1]);
+        const cost = baseCost * COST_MULTIPLIERS[acct.id] * dayMultiplier;
+        const finalCost = isDiscount ? -(cost * randomBetween(0.2, 0.4)) : cost;
+
+        const region = Math.random() < 0.7 ? acct.primary_region : REGIONS[Math.floor(Math.random() * REGIONS.length)];
+
+        const prefix = productCode.replace("Amazon", "").replace("AWS", "").toLowerCase().slice(0, 4);
+        const resourceId = Math.random() < 0.15 ? null : `${prefix}-${acct.id.slice(-4)}-${String(Math.floor(Math.random() * 999)).padStart(3, "0")}`;
+
+        const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+        rows.push({
+          LineItemType: lineItemType,
+          UsageStartDate: dateStr,
+          BillPayerAccountId: billPayer,
+          UsageAccountId: acct.id,
+          ProductCode: productCode,
+          ProductFamily: svcDef.ProductFamily,
+          Cost: +finalCost.toFixed(4),
+          ResourceId: resourceId,
+          Region: region,
+        });
+      }
+      return rows.sort((a, b) => a.UsageStartDate.localeCompare(b.UsageStartDate));
+    }
+
+    // =====================================================================
+    // Account Map Generator
+    // =====================================================================
+
+    function generateAccountMap(count = 10) {
+      return ACCOUNTS.slice(0, count).map(a => ({
+        account_id: a.id,
+        account_name: a.name,
+        owner_email: a.owner_email,
+        business_unit: a.business_unit,
+        environment: a.environment,
+        primary_region: a.primary_region,
+      }));
+    }
+
+    // =====================================================================
+    // CSV helper
+    // =====================================================================
+
+    function rowsToCsv(rows) {
+      if (!rows.length) return "";
+      const headers = Object.keys(rows[0]);
+      const lines = [headers.join(",")];
+      for (const row of rows) {
+        lines.push(headers.map(h => {
+          const val = row[h];
+          if (val === null || val === undefined) return "";
+          return String(val);
+        }).join(","));
+      }
+      return lines.join("\n");
+    }
+
+    // =====================================================================
+    // Streaming Metric Generator (unchanged)
+    // =====================================================================
+
+    const SERVERS = ["prod-web-01", "prod-web-02", "prod-db-01", "dev-worker-01"];
+
+    function generateMetric() {
+      const isSpike = Math.random() < 0.10;
+      const server = SERVERS[Math.floor(Math.random() * SERVERS.length)];
+      return {
+        timestamp: new Date().toISOString(),
+        server_id: server,
+        cpu_usage: isSpike ? +(Math.random() * 13 + 85).toFixed(2) : +(Math.random() * 35 + 30).toFixed(2),
+        memory_usage: isSpike ? +(Math.random() * 10 + 80).toFixed(2) : +(Math.random() * 30 + 25).toFixed(2),
+        disk_io_mbps: isSpike ? +(Math.random() * 150 + 350).toFixed(2) : +(Math.random() * 120 + 40).toFixed(2),
+        network_in_mbps: isSpike ? +(Math.random() * 400 + 600).toFixed(2) : +(Math.random() * 200 + 50).toFixed(2),
+      };
+    }
+
+    // =====================================================================
+    // Palette & Shared Styles
+    // =====================================================================
+
+    const P = {
+      bg: "#0B0E14", surface: "#111620", border: "#1E2636", borderFocus: "#3B82F6",
+      text: "#C9D1D9", textMuted: "#6B7B8F", textBright: "#E6EDF3",
+      accent: "#3B82F6", accentDim: "rgba(59,130,246,0.12)",
+      success: "#22C55E", successDim: "rgba(34,197,94,0.12)",
+      error: "#EF4444", errorDim: "rgba(239,68,68,0.12)",
+      warning: "#F59E0B", warningDim: "rgba(245,158,11,0.10)",
+      cyan: "#06B6D4", cyanDim: "rgba(6,182,212,0.10)",
+      purple: "#A78BFA", purpleDim: "rgba(167,139,250,0.10)",
+    };
+
+    const mono = "'JetBrains Mono', 'Fira Code', monospace";
+    const sectionLabel = { fontSize: 11, fontWeight: 600, color: P.textMuted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 12 };
+    const inputBase = { background: P.bg, border: `1px solid ${P.border}`, borderRadius: 6, padding: "10px 14px", color: P.text, fontSize: 13, fontFamily: mono, outline: "none", transition: "border-color 0.15s" };
+    const card = { background: P.surface, borderRadius: 8, border: `1px solid ${P.border}`, padding: 20, marginBottom: 20 };
+
+    // =====================================================================
+    // Shared Components
+    // =====================================================================
+
+    function StatusPill({ status }) {
+      const map = {
+        idle: { label: "Ready", color: P.textMuted, bg: "transparent", bdr: P.border },
+        generating: { label: "Generating…", color: P.accent, bg: P.accentDim, bdr: P.accent },
+        uploading: { label: "Uploading…", color: P.warning, bg: P.warningDim, bdr: P.warning },
+        success: { label: "Uploaded ✓", color: P.success, bg: P.successDim, bdr: P.success },
+        error: { label: "Error", color: P.error, bg: P.errorDim, bdr: P.error },
+        streaming: { label: "Streaming", color: P.cyan, bg: P.cyanDim, bdr: P.cyan },
+        complete: { label: "Complete ✓", color: P.success, bg: P.successDim, bdr: P.success },
+      };
+      const s = map[status] || map.idle;
+      return (
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: s.color, background: s.bg, border: `1px solid ${s.bdr}`, borderRadius: 4, padding: "3px 10px", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {status === "streaming" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: P.cyan, animation: "pulse 1.5s ease-in-out infinite" }} />}
+          {s.label}
+        </span>
+      );
+    }
+
+    function DataTable({ rows }) {
+      if (!rows.length) return null;
+      const headers = Object.keys(rows[0]);
+      const display = rows.slice(0, 20);
+      return (
+        <div style={{ overflowX: "auto", borderRadius: 8, border: `1px solid ${P.border}`, background: P.surface }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: mono }}>
+            <thead><tr>
+              {headers.map(h => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: P.textMuted, fontWeight: 600, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: `1px solid ${P.border}`, position: "sticky", top: 0, background: P.surface, whiteSpace: "nowrap" }}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {display.map((row, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${P.border}`, background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)" }}>
+                  {headers.map(h => <td key={h} style={{ padding: "8px 14px", color: P.text, whiteSpace: "nowrap" }}>{row[h] === null ? <span style={{ color: P.textMuted }}>—</span> : String(row[h])}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {rows.length > 20 && <div style={{ padding: "8px 14px", fontSize: 11, color: P.textMuted, borderTop: `1px solid ${P.border}`, textAlign: "center" }}>Showing 20 of {rows.length} rows</div>}
+        </div>
+      );
+    }
+
+    function StatBox({ label, value, subtext, color }) {
+      return (
+        <div style={{ background: P.bg, border: `1px solid ${P.border}`, borderRadius: 8, padding: "16px 20px", flex: "1 1 140px", minWidth: 140 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: P.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: color || P.textBright, fontFamily: mono, lineHeight: 1 }}>{value}</div>
+          {subtext && <div style={{ fontSize: 11, color: P.textMuted, marginTop: 4 }}>{subtext}</div>}
+        </div>
+      );
+    }
+
+    function EventLog({ events }) {
+      return (
+        <div style={{ background: P.bg, border: `1px solid ${P.border}`, borderRadius: 8, maxHeight: 280, overflowY: "auto", fontFamily: mono, fontSize: 11 }}>
+          {events.length === 0 ? (
+            <div style={{ padding: 20, textAlign: "center", color: P.textMuted }}>Waiting for stream to start…</div>
+          ) : events.map((evt, i) => {
+            const isSpike = parseFloat(evt.cpu_usage) >= 85;
+            return (
+              <div key={i} style={{ padding: "8px 14px", borderBottom: `1px solid ${P.border}`, display: "flex", gap: 12, alignItems: "center", background: isSpike ? P.errorDim : "transparent" }}>
+                <span style={{ color: P.textMuted, minWidth: 80 }}>{new Date(evt.timestamp).toLocaleTimeString()}</span>
+                <span style={{ color: P.cyan, minWidth: 100 }}>{evt.server_id}</span>
+                <span style={{ color: isSpike ? P.error : P.text, minWidth: 80, fontWeight: isSpike ? 700 : 400 }}>CPU {evt.cpu_usage}%{isSpike && " ▲"}</span>
+                <span style={{ color: P.text, minWidth: 80 }}>MEM {evt.memory_usage}%</span>
+                <span style={{ color: P.textMuted, minWidth: 90 }}>DISK {evt.disk_io_mbps} MB/s</span>
+                <span style={{ color: P.textMuted }}>NET {evt.network_in_mbps} MB/s</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function TabButton({ label, active, onClick, icon }) {
+      return (
+        <button onClick={onClick} style={{ background: active ? P.accentDim : "transparent", color: active ? P.accent : P.textMuted, border: `1px solid ${active ? P.accent : P.border}`, borderRadius: 6, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", letterSpacing: "0.01em", display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 15 }}>{icon}</span>{label}
+        </button>
+      );
+    }
+
+    // =====================================================================
+    // File Ingestion Tab
+    // =====================================================================
+
+    function FileIngestionTab({ token, status, setStatus, message, setMessage }) {
+      const [dataType, setDataType] = useState("cur");
+      const [rows, setRows] = useState([]);
+      const [density, setDensity] = useState("standard");
+      const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+      const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth() + 1);
+      const [format, setFormat] = useState("csv");
+      const [accountCount, setAccountCount] = useState(10);
+      const [dragOver, setDragOver] = useState(false);
+      const fileInputRef = useRef(null);
+
+      const YEARS = [2025, 2026, 2027];
+      const MONTHS = [
+        { value: 1, label: "January" }, { value: 2, label: "February" }, { value: 3, label: "March" },
+        { value: 4, label: "April" }, { value: 5, label: "May" }, { value: 6, label: "June" },
+        { value: 7, label: "July" }, { value: 8, label: "August" }, { value: 9, label: "September" },
+        { value: 10, label: "October" }, { value: 11, label: "November" }, { value: 12, label: "December" },
+      ];
+      const selectedMonthLabel = `${MONTHS.find(m => m.value === selectedMonth)?.label} ${selectedYear}`;
+
+      const handleGenerate = useCallback(() => {
+        setStatus("generating"); setMessage("");
+        setTimeout(() => {
+          if (dataType === "account_map") {
+            const data = generateAccountMap(accountCount);
+            setRows(data); setStatus("idle");
+            setMessage(`Generated account map — ${data.length} accounts`);
+          } else {
+            const data = generateCurRows(selectedYear, selectedMonth, density);
+            setRows(data); setStatus("idle");
+            setMessage(`Generated ${data.length} CUR rows for ${selectedMonthLabel}`);
+          }
+        }, 300);
+      }, [dataType, selectedYear, selectedMonth, density, accountCount, setStatus, setMessage]);
+
+      const uploadFile = useCallback(async (content, filename, mimeType) => {
+        if (!token.trim()) {
+          setStatus("error");
+          setMessage("Enter your bearer token above");
+          return;
+        }
+
+        setStatus("uploading");
+        setMessage("");
+
+        try {
+          const blob = new Blob([content], { type: mimeType });
+          const formData = new FormData();
+          formData.append("file", blob, filename);
+
+          const res = await fetch("/upload", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token.trim() },
+            body: formData,
+          });
+
+          if (res.ok) {
+            const result = await res.json();
+            setStatus("success");
+            setMessage(`${result.file} uploaded (${(result.size_bytes / 1024).toFixed(1)} KB)`);
+          } else {
+            const errText = await res.text();
+            setStatus("error");
+            setMessage("HTTP " + res.status + ": " + errText);
+          }
+        } catch (err) {
+          setStatus("error");
+          setMessage("Network error: " + err.message);
+        }
+
+      }, [token, setStatus, setMessage]);
+
+      const handleUploadGenerated = useCallback(() => {
+        if (!rows.length) { setStatus("error"); setMessage("Generate data first"); return; }
+        const now = new Date();
+        const stamp = now.toISOString().replace(/[-:T.]/g, "").slice(0, 14);
+        if (dataType === "account_map") {
+          uploadFile(rowsToCsv(rows), `account_map_${stamp}.csv`, "text/csv");
+        } else {
+          if (format === "json") {
+            uploadFile(JSON.stringify(rows, null, 2), `cur_${stamp}.json`, "application/json");
+          } else {
+            uploadFile(rowsToCsv(rows), `cur_${stamp}.csv`, "text/csv");
+          }
+        }
+      }, [rows, dataType, format, uploadFile, setStatus, setMessage]);
+
+      const handleFileDrop = useCallback((e) => {
+        e.preventDefault(); setDragOver(false);
+        const file = e.dataTransfer?.files?.[0] || e.target?.files?.[0];
+        if (!file) return;
+        const ext = file.name.split(".").pop().toLowerCase();
+        if (ext !== "csv" && ext !== "json") { setStatus("error"); setMessage("Only CSV and JSON files supported"); return; }
+        const mime = ext === "json" ? "application/json" : "text/csv";
+        const reader = new FileReader();
+        reader.onload = (ev) => uploadFile(ev.target.result, file.name, mime);
+        reader.readAsText(file);
+      }, [uploadFile, setStatus, setMessage]);
+
+      const isCur = dataType === "cur";
+      const uploadLabel = isCur ? "Append to Pipeline →" : "Replace Account Map →";
+      const uploadColor = isCur ? P.success : P.purple;
+
+      return (
+        <div>
+          {/* Data Type Selector */}
+          <div style={card}>
+            <div style={sectionLabel}>Data Type</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { setDataType("cur"); setRows([]); setMessage(""); }}
+                style={{ background: isCur ? P.accentDim : "transparent", color: isCur ? P.accent : P.textMuted, border: `1px solid ${isCur ? P.accent : P.border}`, borderRadius: 6, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Cost &amp; Usage Data
+              </button>
+              <button onClick={() => { setDataType("account_map"); setRows([]); setMessage(""); }}
+                style={{ background: !isCur ? P.purpleDim : "transparent", color: !isCur ? P.purple : P.textMuted, border: `1px solid ${!isCur ? P.purple : P.border}`, borderRadius: 6, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Account Map
+              </button>
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12, color: P.textMuted, lineHeight: 1.5 }}>
+              {isCur
+                ? "Generates mock AWS billing data for the selected month. Runs an Apache Beam batch pipeline (DirectRunner) that cleans and loads data into BigQuery (WRITE_APPEND)."
+                : "Generates the account reference table with ownership and business unit mappings. Runs an Apache Beam batch pipeline that replaces the full table (WRITE_TRUNCATE). Change the account count to see how the Looker dashboard responds."}
+            </div>
+          </div>
+
+          {/* Generator Controls */}
+          <div style={card}>
+            <div style={sectionLabel}>{isCur ? "Generate Cost & Usage Data" : "Generate Account Map"}</div>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+              {isCur && (
+                <>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: P.textMuted, marginBottom: 4 }}>Year</label>
+                    <select value={selectedYear} onChange={(e) => setSelectedYear(+e.target.value)} style={{ ...inputBase, cursor: "pointer" }}>
+                      {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: P.textMuted, marginBottom: 4 }}>Month</label>
+                    <select value={selectedMonth} onChange={(e) => setSelectedMonth(+e.target.value)} style={{ ...inputBase, cursor: "pointer" }}>
+                      {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: P.textMuted, marginBottom: 4 }}>Density</label>
+                    <select value={density} onChange={(e) => setDensity(e.target.value)} style={{ ...inputBase, cursor: "pointer" }}>
+                      <option value="light">Light (~800 rows)</option>
+                      <option value="standard">Standard (~1,500 rows)</option>
+                      <option value="heavy">Heavy (~2,500 rows)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: P.textMuted, marginBottom: 4 }}>Format</label>
+                    <select value={format} onChange={(e) => setFormat(e.target.value)} style={{ ...inputBase, cursor: "pointer" }}>
+                      <option value="csv">CSV</option>
+                      <option value="json">JSON</option>
+                    </select>
+                  </div>
+                </>
+              )}
+              {!isCur && (
+                <div>
+                  <label style={{ display: "block", fontSize: 11, color: P.textMuted, marginBottom: 4 }}>Accounts</label>
+                  <select value={accountCount} onChange={(e) => setAccountCount(+e.target.value)} style={{ ...inputBase, cursor: "pointer" }}>
+                    <option value={7}>7 accounts</option>
+                    <option value={8}>8 accounts</option>
+                    <option value={9}>9 accounts</option>
+                    <option value={10}>10 accounts</option>
+                  </select>
+                </div>
+              )}
+              <button onClick={handleGenerate} style={{ background: P.accent, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                {isCur ? "Generate Data" : "Generate Map"}
+              </button>
+              {rows.length > 0 && (
+                <button onClick={handleUploadGenerated} style={{ background: "transparent", color: uploadColor, border: `1px solid ${uploadColor}`, borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  {uploadLabel}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Status */}
+          {message && (
+            <div style={{ padding: "10px 16px", borderRadius: 6, marginBottom: 20, fontSize: 13, fontFamily: mono, background: status === "error" ? P.errorDim : status === "success" ? P.successDim : P.accentDim, color: status === "error" ? P.error : status === "success" ? P.success : P.accent, border: "1px solid " + (status === "error" ? P.error : status === "success" ? P.success : P.accent) }}>
+              {message}
+            </div>
+          )}
+
+          {/* Preview */}
+          {rows.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={sectionLabel}>Preview — {rows.length} rows</div>
+              <DataTable rows={rows} />
+            </div>
+          )}
+
+          {/* Drop Zone */}
+          <div onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleFileDrop} onClick={() => fileInputRef.current?.click()}
+            style={{ border: "2px dashed " + (dragOver ? P.accent : P.border), borderRadius: 8, padding: "36px 20px", textAlign: "center", cursor: "pointer", transition: "all 0.2s", background: dragOver ? P.accentDim : "transparent" }}>
+            <input ref={fileInputRef} type="file" accept=".csv,.json" onChange={handleFileDrop} style={{ display: "none" }} />
+            <div style={{ fontSize: 14, color: dragOver ? P.accent : P.textMuted, marginBottom: 4 }}>Drop a CSV or JSON file here or click to browse</div>
+            <div style={{ fontSize: 11, color: P.textMuted }}>
+              Files prefixed with <span style={{ color: P.text }}>cur_</span> append to billing data
+              &ensp;·&ensp;
+              Files prefixed with <span style={{ color: P.text }}>account_map_</span> replace the reference table
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // =====================================================================
+    // Live Streaming Tab (unchanged)
+    // =====================================================================
+
+    function LiveStreamingTab({ token, status, setStatus, message, setMessage }) {
+      const [streamState, setStreamState] = useState("idle");
+      const [duration, setDuration] = useState(60);
+      const [recordsSent, setRecordsSent] = useState(0);
+      const [elapsedSeconds, setElapsedSeconds] = useState(0);
+      const [events, setEvents] = useState([]);
+      const [errors, setErrors] = useState(0);
+      const streamIntervalRef = useRef(null);
+      const timerIntervalRef = useRef(null);
+      const startTimeRef = useRef(null);
+      const recordsRef = useRef(0);
+      const errorsRef = useRef(0);
+
+      const stopStream = useCallback(() => {
+        clearInterval(streamIntervalRef.current); clearInterval(timerIntervalRef.current);
+        streamIntervalRef.current = null; timerIntervalRef.current = null;
+        setStreamState("complete"); setStatus("complete");
+        setMessage(`Stream complete — ${recordsRef.current} records sent${errorsRef.current > 0 ? `, ${errorsRef.current} errors` : ""}`);
+      }, [setStatus, setMessage]);
+
+      const startStream = useCallback(() => {
+        if (!token.trim()) {
+          setStatus("error");
+          setMessage("Enter your bearer token above");
+          return;
+        }
+
+        setRecordsSent(0); setElapsedSeconds(0); setEvents([]); setErrors(0);
+        recordsRef.current = 0; errorsRef.current = 0;
+        setStreamState("streaming"); setStatus("streaming"); setMessage("");
+        startTimeRef.current = Date.now();
+
+        timerIntervalRef.current = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+          setElapsedSeconds(elapsed);
+          if (elapsed >= duration) stopStream();
+        }, 1000);
+
+        const sendMetric = async () => {
+          const metric = generateMetric();
+          try {
+            const res = await fetch("/stream", {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + token.trim(),
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(metric)
+            });
+
+            if (res.ok) {
+              recordsRef.current += 1;
+              setRecordsSent(recordsRef.current);
+              setEvents(prev => [metric, ...prev].slice(0, 50));
+            }
+            else {
+              errorsRef.current += 1;
+              setErrors(errorsRef.current);
+            }
+          } catch (err) {
+            errorsRef.current += 1;
+            setErrors(errorsRef.current);
+          }
+        };
+
+        sendMetric();
+        streamIntervalRef.current = setInterval(sendMetric, 2000);
+      }, [token, duration, stopStream, setStatus, setMessage]);
+
+      const handleReset = useCallback(() => {
+        setStreamState("idle"); setStatus("idle"); setMessage("");
+        setRecordsSent(0); setElapsedSeconds(0); setEvents([]); setErrors(0);
+        recordsRef.current = 0; errorsRef.current = 0;
+      }, [setStatus, setMessage]);
+
+      useEffect(() => { return () => { clearInterval(streamIntervalRef.current); clearInterval(timerIntervalRef.current); }; }, []);
+
+      const timeRemaining = Math.max(0, duration - elapsedSeconds);
+      const timeDisplay = `${Math.floor(timeRemaining / 60)}:${(timeRemaining % 60).toString().padStart(2, "0")}`;
+      const elapsedDisplay = `${Math.floor(elapsedSeconds / 60)}:${(elapsedSeconds % 60).toString().padStart(2, "0")}`;
+
+      return (
+        <div>
+          <div style={card}>
+            <div style={sectionLabel}>Stream Controls</div>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+              <div>
+                <label style={{ display: "block", fontSize: 11, color: P.textMuted, marginBottom: 4 }}>Duration</label>
+                <select value={duration} onChange={(e) => setDuration(+e.target.value)} disabled={streamState === "streaming"}
+                  style={{ ...inputBase, cursor: streamState === "streaming" ? "not-allowed" : "pointer", opacity: streamState === "streaming" ? 0.5 : 1 }}>
+                  <option value={30}>30 seconds</option>
+                  <option value={60}>1 minute</option>
+                  <option value={120}>2 minutes</option>
+                </select>
+              </div>
+              {streamState === "streaming"
+                ? <button onClick={stopStream} style={{ background: P.error, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>Stop Stream</button>
+                : <button onClick={startStream} style={{ background: P.cyan, color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>Start Stream</button>
+              }
+              {streamState === "complete" && <button onClick={handleReset} style={{ background: "transparent", color: P.textMuted, border: "1px solid " + P.border, borderRadius: 6, padding: "10px 16px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>Reset</button>}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 12, color: P.textMuted, lineHeight: 1.6 }}>
+              Publishes server metrics as JSON every 2s → Pub/Sub → Apache Beam streaming pipeline → BigQuery → Grafana.
+              {streamState === "idle" && " ~10% of readings will spike above alert thresholds."}
+            </div>
+          </div>
+
+          {message && (
+            <div style={{ padding: "10px 16px", borderRadius: 6, marginBottom: 20, fontSize: 13, fontFamily: mono, background: status === "error" ? P.errorDim : status === "complete" ? P.successDim : P.cyanDim, color: status === "error" ? P.error : status === "complete" ? P.success : P.cyan, border: "1px solid " + (status === "error" ? P.error : status === "complete" ? P.success : P.cyan) }}>
+              {message}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+            <StatBox label="Records Sent" value={recordsSent} subtext={errors > 0 ? `${errors} failed` : null} color={P.textBright} />
+            <StatBox label="Elapsed" value={elapsedDisplay} subtext={streamState === "streaming" ? "running" : null} color={P.textBright} />
+            <StatBox label="Remaining" value={streamState === "idle" ? "--:--" : timeDisplay} subtext={streamState === "streaming" ? "auto-stop" : null} color={streamState === "streaming" && timeRemaining <= 10 ? P.warning : P.textBright} />
+            <StatBox label="Interval" value="2s" subtext="per metric" color={P.textMuted} />
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={sectionLabel}>Event Log</div>
+            <EventLog events={events} />
+          </div>
+        </div>
+      );
+    }
+
+    // =====================================================================
+    // App
+    // =====================================================================
+
+    function App() {
+      const [activeTab, setActiveTab] = useState("file");
+      const [status, setStatus] = useState("idle");
+      const [message, setMessage] = useState("");
+      const [token, setToken] = useState("");
+      const handleTabSwitch = useCallback((tab) => { setActiveTab(tab); setStatus("idle"); setMessage(""); }, []);
+
+      return (
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: P.accent, background: P.accentDim, padding: "3px 8px", borderRadius: 3 }}>FinOps Lab</span>
+              <StatusPill status={status} />
+            </div>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: P.textBright, margin: "0 0 6px 0", letterSpacing: "-0.02em" }}>Pipeline Demo</h1>
+            <p style={{ fontSize: 14, color: P.textMuted, margin: 0, lineHeight: 1.5 }}>
+              Two Apache Beam pipelines on DirectRunner — batch file ingestion
+              and real-time Pub/Sub streaming — writing to BigQuery with dashboards in Looker and Grafana.
+            </p>
+          </div>
+
+          <div style={card}>
+            <div style={sectionLabel}>Connection</div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {/* The Cloud Run URL input is removed from here */}
+              <input
+                type="password"
+                placeholder="Bearer token"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                style={{ ...inputBase, flex: "1 1 100%" }}
+                onFocus={(e) => e.target.style.borderColor = P.borderFocus}
+                onBlur={(e) => e.target.style.borderColor = P.border}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            <TabButton label="File Ingestion" icon="📦" active={activeTab === "file"} onClick={() => handleTabSwitch("file")} />
+            <TabButton label="Live Streaming" icon="⚡" active={activeTab === "stream"} onClick={() => handleTabSwitch("stream")} />
+          </div>
+
+          {activeTab === "file"
+            ? <FileIngestionTab token={token} status={status} setStatus={setStatus} message={message} setMessage={setMessage} />
+            : <LiveStreamingTab token={token} status={status} setStatus={setStatus} message={message} setMessage={setMessage} />
+          }
+
+          <div style={{ marginTop: 40, paddingTop: 20, borderTop: "1px solid " + P.border, fontSize: 11, color: P.textMuted, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+            <span>Batch: Beam → BigQuery → Looker&ensp;|&ensp;Stream: Pub/Sub → Beam → BigQuery → Grafana</span>
+            <span>FinOps Data Stack Demo</span>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+
+</html>

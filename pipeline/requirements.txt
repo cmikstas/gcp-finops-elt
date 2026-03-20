@@ -1,0 +1,10 @@
+flask>=3.0
+gunicorn>=21.2
+google-cloud-storage>=2.14
+google-cloud-pubsub>=2.19
+google-cloud-bigquery>=3.14
+apache-beam[gcp]>=2.56
+pandas>=2.1
+openpyxl>=3.1        # For XLSX support in pandas
+pyarrow>=14.0        # For Parquet support + Beam BQ I/O
+werkzeug>=3.0
