@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run
+name: Deploy to Cloud Run and Firebase
 
 on:
   push:
@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Authenticate to GCP via WIF
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/282981154722/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider
@@ -41,3 +42,11 @@ jobs:
             --image us-west3-docker.pkg.dev/cur-sql-practice/cloud-run-source-deploy/finops-beam-pipeline:${{ github.sha }} \
             --region us-west3 \
             --platform managed
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ steps.auth.outputs.credentials_json }}
+          projectId: cur-sql-practice
+          channelId: live
