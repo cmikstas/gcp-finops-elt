@@ -1,5 +1,5 @@
 """
-FinOps Pipeline v2 — Beam on Cloud Run
+ELT Pipeline — Beam on Cloud Run
 
 Single HTTP service that:
   1. Receives file uploads → runs Beam batch pipeline → BigQuery (Looker)
@@ -35,7 +35,6 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Reuse clients across warm invocations
 storage_client = storage.Client()
 publisher_client = pubsub_v1.PublisherClient()
 topic_path = publisher_client.topic_path(PROJECT_ID, TOPIC_ID)
@@ -43,7 +42,6 @@ topic_path = publisher_client.topic_path(PROJECT_ID, TOPIC_ID)
 
 # ---------------------------------------------------------------------------
 # Start the Beam streaming pipeline in a background thread at import time.
-# This means it starts when the Cloud Run container boots.
 # ---------------------------------------------------------------------------
 start_streaming_pipeline()
 
@@ -137,7 +135,6 @@ def stream():
         if not data:
             return json_error("Invalid JSON payload", 400)
 
-        # Ensure timestamp exists
         if "timestamp" not in data:
             data["timestamp"] = datetime.now(timezone.utc).isoformat()
 
@@ -214,7 +211,6 @@ def upload():
 
     # --- Run Beam batch pipeline ---
     try:
-        # Download the bytes we just uploaded (Beam needs them in-memory)
         uploaded_file.seek(0)
         file_bytes = uploaded_file.read()
 
@@ -230,7 +226,6 @@ def upload():
 
     except Exception as e:
         logger.error(f"BEAM ERROR: {clean_filename}: {e}")
-        # File is already in GCS, so it's not lost — just pipeline failed
         return json_error(f"File uploaded but pipeline failed: {str(e)}", 500)
 
 
