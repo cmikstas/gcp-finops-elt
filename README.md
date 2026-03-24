@@ -1,4 +1,4 @@
-# GCP FinOps ELT Pipeline
+# GCP ELT Pipeline Demo
 
 A production grade ELT pipeline built to demonstrate end-to-end 
 data engineering on Google Cloud Platform. Ingests mock AWS Cost and 
