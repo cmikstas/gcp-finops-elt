@@ -214,10 +214,10 @@ firebase deploy --only hosting --project your-project-id
 
 ## Screenshots
 
-### Grafana Dashboard — Real-Time Server Metrics
+### Grafana Dashboard - Real-Time Server Metrics
 ![Grafana Dashboard](docs/images/grafana_dashboard.png)
 
-### Looker Dashboard — CUR Billing Analysis
+### Looker Dashboard - CUR Billing Analysis
 ![Looker Dashboard](docs/images/looker_dashboard.png)
 
 ### dbt Lineage Graphs
@@ -225,34 +225,34 @@ firebase deploy --only hosting --project your-project-id
 ![dbt Account Lineage](docs/images/dim_account_map_dbt_lineage.png)
 ![dbt Server Lineage](docs/images/fct_server_metrics_dbt_lineage.png)
 
-### GitHub Actions — Successful Deployment
+### GitHub Actions - Successful Deployment
 ![GitHub Actions](docs/images/github_actions.png)
 
 ## Roadmap
 
-- **Dataflow Migration** — Replace DirectRunner with Google Dataflow 
+- **Dataflow Migration** - Replace DirectRunner with Google Dataflow 
 for production scale distributed pipeline execution. The pipeline 
 code requires no changes, only the runner configuration.
 
-- **Terraform** — Infrastructure as Code for all GCP resources 
+- **Terraform** - Infrastructure as Code for all GCP resources 
 including BigQuery datasets, Cloud Run services, Pub/Sub topics, 
 GCS buckets, and IAM bindings.
 
-- **GitHub Actions Optimization** — Implement path-based conditional 
+- **GitHub Actions Optimization** - Implement path-based conditional 
 steps to avoid rebuilding and redeploying unchanged components on 
 every push.
 
-- **dbt Source Freshness** — Add `dbt source freshness` checks to 
+- **dbt Source Freshness** - Add `dbt source freshness` checks to 
 the nightly job to alert when source tables have not been updated 
 within expected intervals.
 
-- **Workload Identity Federation for dbt Cloud** — Potentially replace 
+- **Workload Identity Federation for dbt Cloud** - Potentially replace 
 the current Service Account JSON key with WIF authentication for dbt 
 Cloud's BigQuery connection, eliminating this long-lived credential 
 from the stack. Ticket was submitted to dbt support and currently 
 requires Entra ID and OAUTH and is an enterprise feature. Will review 
 later to see if this becomes a mainstream feature.
 
-- **Alerting** — Integrate dbt Cloud webhook notifications with 
+- **Alerting** - Integrate dbt Cloud webhook notifications with 
 Slack to alert on nightly job failures or data quality test 
 failures.
