@@ -28,7 +28,6 @@ data quality testing, and CI/CD deployment - all on GCP.
 | Auth            | Workload Identity Federation | Keyless GCP authentication from GitHub Actions            |
 | Secrets         | GCP Secret Manager           | Secure token storage                                      |
 | Version Control | GitHub                       | Source code and infrastructure management                 |
-|-----------------|------------------------------|-----------------------------------------------------------|
 
 ## Architecture
 
@@ -129,7 +128,6 @@ in this repository.
 | Cloud Run deployment  | Workload Identity Federation (keyless)   |
 | Firebase deployment   | Workload Identity Federation (keyless)   |
 | dbt Cloud nightly job | Service Account JSON (dbt Cloud managed) |
-|-----------------------|------------------------------------------|
 
 ## Data Models
 
@@ -144,7 +142,6 @@ for consumption.
 | `stg_server_metrics` | `finops_lab.server_metrics`   | Casts all STRING columns to typed values, parses ISO 8601 timestamps     |
 | `stg_cur`            | `finops_lab.cur_billing_data` | Casts cost to FLOAT64, parses usage dates, renames columns to snake_case |
 | `stg_account_map`    | `finops_lab.account_map`      | Cleans and standardizes account metadata                                 |
-|----------------------|-------------------------------|--------------------------------------------------------------------------|
 
 ### Fact and Dimension Models
 | Model                | Type      | Description                                                                             |
@@ -152,7 +149,6 @@ for consumption.
 | `fct_server_metrics` | Fact      | Adds derived metrics (rounded values, metric_date, metric_hour) for Grafana consumption |
 | `fct_cur`            | Fact      | Adds service categorization, usage month rollup, filters credits                        |
 | `dim_account_map`    | Dimension | Adds `is_production` boolean flag for downstream filtering                              |
-|----------------------|-----------|-----------------------------------------------------------------------------------------|
 
 ### Data Quality
 All models include `not_null` tests on critical columns. 
@@ -185,7 +181,6 @@ Cloud Run service:
 | `DESTINATION_BUCKET` | GCS bucket name for file uploads               |
 | `PRIMARY_TOKEN`      | API auth token (stored in Secret Manager)      |
 | `DEMO_TOKEN`         | Demo API auth token (stored in Secret Manager) |
-|----------------------|------------------------------------------------|
 
 ### Running Locally
 ```bash
