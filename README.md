@@ -1,10 +1,10 @@
 # GCP FinOps ELT Pipeline
 
 A production grade ELT pipeline built to demonstrate end-to-end 
-data engineering on Google Cloud Platform. Ingests AWS Cost and 
-Usage Report (CUR) billing data and real-time server metrics, 
-transforms them through a dbt modeling layer, and surfaces insights 
-in Grafana and Looker dashboards.
+data engineering on Google Cloud Platform. Ingests mock AWS Cost and 
+Usage Report (CUR) billing data and simulated real-time server 
+metrics, transforms them through a dbt modeling layer, and surfaces 
+insights in Grafana and Looker dashboards.
 
 Built as a portfolio project to showcase data engineering patterns 
 including streaming and batch ingestion, automated transformation, 
