@@ -1,14 +1,9 @@
 # GCP ELT Pipeline Demo
 
-A production grade ELT pipeline built to demonstrate end-to-end 
-data engineering on Google Cloud Platform. Ingests mock AWS Cost and 
-Usage Report (CUR) billing data and simulated real-time server 
-metrics, transforms them through a dbt modeling layer, and surfaces 
-insights in Grafana and Looker dashboards.
-
-Built as a portfolio project to showcase data engineering patterns 
-including streaming and batch ingestion, automated transformation, 
-data quality testing, and CI/CD deployment - all on GCP.
+A production-style ELT pipeline portfolio project built to demonstrate
+end-to-end data engineering on Google Cloud Platform. It ingests mock 
+AWS CUR billing data and simulated real-time server metrics, transforms 
+them through dbt, and surfaces insights in Grafana and Looker dashboards.
 
 ## Tech Stack
 
@@ -230,9 +225,10 @@ firebase deploy --only hosting --project your-project-id
 
 ## Roadmap
 
-- **Dataflow Migration** - Replace DirectRunner with Google Dataflow 
-for production scale distributed pipeline execution. The pipeline 
-code requires no changes, only the runner configuration.
+- **Optional Dataflow Execution** - This project currently uses 
+DirectRunner by design for demo and cost reasons. The Beam pipeline 
+is runner agnostic and can be configured to run on Dataflow when 
+managed distributed execution is needed.
 
 - **Terraform** - Infrastructure as Code for all GCP resources 
 including BigQuery datasets, Cloud Run services, Pub/Sub topics, 
